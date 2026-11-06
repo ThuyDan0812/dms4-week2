@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HANKO-BAKA (判子馬鹿) - Xưởng Khắc Dấu Vô Tri Nhật Bản</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@700;900&family=IBM+Plex+Mono:wght@500;700&display=swap');
+
+  :root {
+    --vermilion: #d92b27;
+    --wood-bg: #2c1e16;
+    --wood-panel: #f4eee1;
+    --ink-black: #1a1817;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+
+  body {
+    background-color: var(--wood-bg);
+    background-image: repeating-linear-gradient(45deg, rgba(255,255,255,0.02) 0px, rgba(255,255,255,0.02) 2px, transparent 2px, transparent 8px);
+    color: var(--ink-black);
+    font-family: 'IBM Plex Mono', monospace;
+    min-height: 100vh;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  /* Screen Shake Animation when Stamping */
+  @keyframes stampSlam {
+    0% { transform: translate(0, 0) scale(1.02); }
+    25% { transform: translate(-6px, 8px) rotate(-1deg); }
+    50% { transform: translate(6px, -6px) rotate(1deg); }
+    75% { transform: translate(-3px, 4px); }
+    100% { transform: translate(0, 0) scale(1); }
+  }
+  .shake-screen { animation: stampSlam 0.22s ease-out; }
+
+  .craft-header {
+    width: 100%;
+    max-width: 1040px;
+    background: var(--wood-panel);
+    border: 4px solid var(--ink-black);
+    box-shadow: 6px 6px 0 var(--vermilion);
+    padding: 14px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+  }
+
+  .craft-header h1 {
+    font-family: 'Noto Serif JP', serif;
+    font-size: 1.6rem;
+    color: var(--vermilion);
+  }
+
+  .workbench {
+    width: 100%;
+    max-width: 1040px;
+    display: grid;
+    grid-template-columns: 1fr 1.2fr;
+    gap: 22px;
+  }
+
+  @media (max-width: 850px) {
+    .workbench { grid-template-columns: 1fr; }
+  }
+
+  .station {
+    background: var(--wood-panel);
+    border: 4px solid var(--ink-black);
+    box-shadow: 8px 8px 0 rgba(0,0,0,0.45);
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .station-bar {
+    background: var(--ink-black);
+    color: #fff;
+    padding: 6px 12px;
+    font-weight: bold;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .carve-zone {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  canvas#carveCanvas {
+    background: #fff;
+    border: 3px dashed var(--vermilion);
+    cursor: crosshair;
+    touch-action: none;
+  }
+
+  /* Shuniku Red Ink Pad */
+  .shuniku-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .shuniku-pad {
+    width: 110px;
+    height: 110px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #ff4b47, #b81d19 70%, #7a0f0c 100%);
+    border: 8px solid #1f1a17;
+    box-shadow: inset 0 4px 10px rgba(0,0,0,0.6), 0 4px 0 #d4af37;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255,255,255,0.85);
+    font-weight: bold;
+    font-size: 0.75rem;
+    text-align: center;
+    transition: transform 0.1s;
+  }
+  .shuniku-pad:active { transform: scale(0.92); }
+
+  .controls-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  label { font-size: 0.8rem; font-weight: bold; display: block; margin-bottom: 4px; }
+
+  select, input[type="text"], input[type="range"] {
+    width: 100%;
+    padding: 8px;
+    border: 2px solid var(--ink-black);
+    background: #fff;
+    font-family: inherit;
+    font-weight: bold;
+  }
+
+  button, .file-label {
+    font-family: inherit;
+    font-weight: bold;
+    font-size: 0.85rem;
+    padding: 9px 12px;
+    border: 2px solid var(--ink-black);
+    background: #fff;
+    cursor: pointer;
+    box-shadow: 3px 3px 0 var(--ink-black);
+    text-align: center;
+    display: inline-block;
+  }
+  button:hover, .file-label:hover { background: #ffe8e8; }
+  button:active, .file-label:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--ink-black); }
+
+  .btn-vermilion {
+    background: var(--vermilion);
+    color: #fff;
+  }
+  .btn-vermilion:hover { background: #b81f1b; }
+
+  /* Right Side: Stamping Desk */
+  .paper-desk {
+    position: relative;
+    background: #e6dec8;
+    border: 3px solid var(--ink-black);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+  }
+
+  canvas#documentCanvas {
+    background: #fdfbf7;
+    cursor: pointer;
+    max-width: 100%;
+    height: auto;
+    display: block;
+  }
+
+  .ink-meter {
+    font-size: 0.8rem;
+    padding: 4px 10px;
+    background: #fff;
+    border: 2px solid var(--ink-black);
+    font-weight: bold;
+  }
+</style>
+</head>
+<body>
+
+  <!-- Hidden SVG Filter for Real-time Woodcut Preview -->
+  <svg width="0" height="0" style="position:absolute;">
+    <filter id="hankoDistress">
+      <feTurbulence type="fractalNoise" baseFrequency="0.08" numOctaves="3" result="noise" />
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="4" xChannelSelector="R" yChannelSelector="G" />
+    </filter>
+  </svg>
+
+  <header class="craft-header">
+    <div>
+      <h1>印鑑 HANKO-BAKA (判子馬鹿)</h1>
+      <small>Biến Nét Vẽ Vô Tri Thành Con Dấu Đỏ Truyền Thống Trong 10 Giây</small>
+    </div>
+    <div class="ink-meter" id="inkStatus">🔴 Độ đậm mực: 100% (Sẵn sàng đóng dấu!)</div>
+  </header>
+
+  <main class="workbench">
+    <!-- STATION 1: CARVING THE STAMP -->
+    <section class="station">
+      <div class="station-bar">
+        <span>1. KHẮC DẤU & CHẤM MỰC CHU SA (朱肉)</span>
+        <span>彫刻</span>
+      </div>
+
+      <div class="carve-zone">
+        <div>
+          <small style="display:block; margin-bottom:4px; font-weight:bold;">Vẽ hình bựa vào khung khắc:</small>
+          <canvas id="carveCanvas" width="220" height="220"></canvas>
+        </div>
+
+        <div class="shuniku-wrapper">
+          <div class="shuniku-pad" id="shunikuPad" title="Bấm vào để chấm thêm mực đỏ!">
+            CHẤM MỰC<br>CHU SA<br>(朱肉)
+          </div>
+          <small style="font-size:0.75rem; text-align:center; max-width:120px;">
+            Đóng nhiều sẽ mờ mực. Bấm hộp mực để nạp lại!
+          </small>
+        </div>
+      </div>
+
+      <div class="controls-grid">
+        <div>
+          <label>Hình dáng phôi đá:</label>
+          <select id="stampShape">
+            <option value="circle">Tròn truyền thống (Maru-in)</option>
+            <option value="square">Vuông gia tộc (Kaku-in)</option>
+            <option value="oval">Bầu dục cổ điển (Koban-in)</option>
+          </select>
+        </div>
+        <div>
+          <label>Chữ khắc kèm (Tối đa 8 ký tự):</label>
+          <input type="text" id="stampText" value="ĐÃ DUYỆT" maxlength="10">
+        </div>
+        <div>
+          <label>Độ mẻ đá / Rỗ mực (<span id="gritVal">35</span>%):</label>
+          <input type="range" id="gritRange" min="5" max="80" value="35">
+        </div>
+        <div>
+          <label>Mẫu vẽ lầy lội có sẵn:</label>
+          <div style="display:flex; gap:4px;">
+            <button type="button" id="presetCatBtn" style="flex:1; padding:6px;">🐱 Mèo khóc</button>
+            <button type="button" id="presetFishBtn" style="flex:1; padding:6px;">🐟 Cá khô</button>
+            <button type="button" id="clearCarveBtn" style="padding:6px;">🗑️</button>
+          </div>
+        </div>
+      </div>
+
+      <button type="button" id="downloadStampPngBtn" class="btn-vermilion">
+        📥 TẢI FILE CON DẤU NỀN TRONG SUỐT (.PNG) LÀM STICKER
+      </button>
+    </section>
+
+    <!-- STATION 2: STAMPING ON DOCUMENT OR PHOTO -->
+    <section class="station">
+      <div class="station-bar">
+        <span>2. CLICK LÊN GIẤY / ẢNH ĐỂ ĐÓNG DẤU "CỘP!"</span>
+        <span>押印</span>
+      </div>
+
+      <div class="paper-desk">
+        <canvas id="documentCanvas" width="520" height="360"></canvas>
+      </div>
+
+      <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:space-between;">
+        <label class="file-label">
+          🖼️ Tải ảnh / Meme lên để đóng dấu
+          <input type="file" id="bgUploadInput" accept="image/*" style="display:none;">
+        </label>
+        <button type="button" id="resetDocBtn">📄 Làm mới tờ giấy Washi</button>
+        <button type="button" id="downloadDocBtn" class="btn-vermilion" style="margin-left:auto;">
+          💾 Tải Ảnh Đã Đóng Dấu (.PNG)
+        </button>
+      </div>
+    </section>
+  </main>
+
+<script>
+  // --- SOUND ENGINE (STAMP THUD & INK SQUISH) ---
+  const StampAudio = {
+    ctx: null,
+    init() {
+      if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+      if (this.ctx.state === 'suspended') this.ctx.resume();
+    },
+    playStampThump() {
+      this.init();
+      const now = this.ctx.currentTime;
+      // Heavy low-end desk thump
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(150, now);
+      osc.frequency.exponentialRampToValueAtTime(32, now + 0.16);
+      gain.gain.setValueAtTime(0.9, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.18);
+      osc.connect(gain).connect(this.ctx.destination);
+      osc.start(now); osc.stop(now + 0.19);
+
+      // Paper slap crack
+      const bufferSize = this.ctx.sampleRate * 0.05;
+      const noiseBuffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+      const data = noiseBuffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+      const noise = this.ctx.createBufferSource();
+      noise.buffer = noiseBuffer;
+      const filter = this.ctx.createBiquadFilter();
+      filter.type = 'bandpass';
+      filter.frequency.value = 900;
+      const nGain = this.ctx.createGain();
+      nGain.gain.setValueAtTime(0.5, now);
+      nGain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+      noise.connect(filter).connect(nGain).connect(this.ctx.destination);
+      noise.start(now);
+    },
+    playInkDip() {
+      this.init();
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(220, now);
+      osc.frequency.exponentialRampToValueAtTime(480, now + 0.09);
+      gain.gain.setValueAtTime(0.3, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+      osc.connect(gain).connect(this.ctx.destination);
+      osc.start(now); osc.stop(now + 0.1);
+    }
+  };
+
+  // --- CARVING CANVAS SETUP ---
+  const carveCanvas = document.getElementById('carveCanvas');
+  const carveCtx = carveCanvas.getContext('2d');
+  let isCarving = false;
+  let inkLevel = 1.0; // Starts at 100% ink
+
+  function clearCarveCanvas() {
+    carveCtx.clearRect(0, 0, carveCanvas.width, carveCanvas.height);
+  }
+
+  function drawCryingCatPreset() {
+    clearCarveCanvas();
+    carveCtx.strokeStyle = '#d92b27';
+    carveCtx.lineWidth = 6;
+    carveCtx.lineCap = 'round';
+    carveCtx.lineJoin = 'round';
+
+    // Cat head + ears
+    carveCtx.beginPath();
+    carveCtx.moveTo(65, 95);
+    carveCtx.lineTo(55, 45);
+    carveCtx.lineTo(95, 70);
+    carveCtx.lineTo(125, 70);
+    carveCtx.lineTo(165, 45);
+    carveCtx.lineTo(155, 95);
+    carveCtx.quadraticCurveTo(170, 145, 110, 150);
+    carveCtx.quadraticCurveTo(50, 145, 65, 95);
+    carveCtx.stroke();
+
+    // Crying eyes + waterfall tears
+    carveCtx.beginPath();
+    carveCtx.moveTo(80, 100); carveCtx.lineTo(98, 100);
+    carveCtx.moveTo(122, 100); carveCtx.lineTo(140, 100);
+    carveCtx.moveTo(88, 102); carveCtx.quadraticCurveTo(82, 125, 88, 142);
+    carveCtx.moveTo(132, 102); carveCtx.quadraticCurveTo(138, 125, 132, 142);
+    // Wobbly mouth
+    carveCtx.moveTo(98, 125); carveCtx.quadraticCurveTo(105, 118, 110, 125);
+    carveCtx.quadraticCurveTo(115, 118, 122, 125);
+    carveCtx.stroke();
+  }
+
+  function drawDriedFishPreset() {
+    clearCarveCanvas();
+    carveCtx.strokeStyle = '#d92b27';
+    carveCtx.lineWidth = 6;
+    carveCtx.lineCap = 'round';
+    carveCtx.beginPath();
+    // Fish body
+    carveCtx.ellipse(105, 105, 55, 28, -0.2, 0, Math.PI * 2);
+    carveCtx.stroke();
+    // Tail
+    carveCtx.beginPath();
+    carveCtx.moveTo(155, 95); carveCtx.lineTo(185, 70);
+    carveCtx.lineTo(178, 115); carveCtx.closePath();
+    carveCtx.stroke();
+    // Dead X eye & ribs
+    carveCtx.beginPath();
+    carveCtx.moveTo(68, 98); carveCtx.lineTo(80, 110);
+    carveCtx.moveTo(80, 98); carveCtx.lineTo(68, 110);
+    carveCtx.moveTo(100, 88); carveCtx.lineTo(105, 122);
+    carveCtx.moveTo(120, 85); carveCtx.lineTo(125, 118);
+    carveCtx.stroke();
+  }
+
+  drawCryingCatPreset();
+
+  function getCarveCoords(e) {
+    const r = carveCanvas.getBoundingClientRect();
+    return {
+      x: (e.clientX - r.left) * (carveCanvas.width / r.width),
+      y: (e.clientY - r.top) * (carveCanvas.height / r.height)
+    };
+  }
+
+  carveCanvas.addEventListener('pointerdown', (e) => {
+    isCarving = true;
+    const p = getCarveCoords(e);
+    carveCtx.beginPath();
+    carveCtx.moveTo(p.x, p.y);
+  });
+
+  carveCanvas.addEventListener('pointermove', (e) => {
+    if (!isCarving) return;
+    const p = getCarveCoords(e);
+    carveCtx.strokeStyle = '#d92b27';
+    carveCtx.lineWidth = 6;
+    carveCtx.lineCap = 'round';
+    carveCtx.lineJoin = 'round';
+    carveCtx.lineTo(p.x, p.y);
+    carveCtx.stroke();
+  });
+
+  window.addEventListener('pointerup', () => { isCarving = false; });
+
+  document.getElementById('presetCatBtn').addEventListener('click', drawCryingCatPreset);
+  document.getElementById('presetFishBtn').addEventListener('click', drawDriedFishPreset);
+  document.getElementById('clearCarveBtn').addEventListener('click', clearCarveCanvas);
+
+  const gritRange = document.getElementById('gritRange');
+  gritRange.addEventListener('input', () => {
+    document.getElementById('gritVal').textContent = gritRange.value;
+  });
+
+  // --- GENERATE AUTHENTIC DISTRESSED HANKO STAMP ---
+  function generateHankoCanvas(opacityMultiplier = 1.0) {
+    const size = 240;
+    const off = document.createElement('canvas');
+    off.width = size;
+    off.height = size;
+    const c = off.getContext('2d');
+
+    const shape = document.getElementById('stampShape').value;
+    const label = document.getElementById('stampText').value.trim();
+    const grit = parseInt(gritRange.value, 10);
+
+    c.save();
+    c.globalAlpha = Math.max(0.2, opacityMultiplier);
+    c.strokeStyle = '#d92b27';
+    c.fillStyle = '#d92b27';
+
+    // 1. Draw thick outer carved rim
+    c.lineWidth = 12;
+    c.beginPath();
+    if (shape === 'circle') {
+      c.arc(size / 2, size / 2, 102, 0, Math.PI * 2);
+    } else if (shape === 'square') {
+      c.roundRect(22, 22, size - 44, size - 44, 14);
+    } else {
+      c.ellipse(size / 2, size / 2, 78, 108, 0, 0, Math.PI * 2);
+    }
+    c.stroke();
+
+    // Inner thin border line
+    c.lineWidth = 3;
+    c.stroke();
+
+    // 2. Draw user's doodle scaled inside the stamp
+    c.drawImage(carveCanvas, 20, 12, 200, 190);
+
+    // 3. Draw custom text banner at bottom of stamp
+    if (label) {
+      c.font = '900 22px "Noto Serif JP", serif';
+      c.textAlign = 'center';
+      c.fillText(label.toUpperCase(), size / 2, 192);
+    }
+
+    // 4. Procedural Woodcut Chipping & Ink Bleed (destination-out)
+    c.globalCompositeOperation = 'destination-out';
+    const blotchCount = grit * 14;
+    for (let i = 0; i < blotchCount; i++) {
+      const rx = Math.random() * size;
+      const ry = Math.random() * size;
+      const rad = Math.random() * (grit / 14) + 0.8;
+      c.beginPath();
+      c.arc(rx, ry, rad, 0, Math.PI * 2);
+      c.fill();
+    }
+
+    // Scratch lines across the stone
+    c.lineWidth = 1.8;
+    for (let j = 0; j < Math.floor(grit / 4); j++) {
+      c.beginPath();
+      c.moveTo(Math.random() * size, Math.random() * size);
+      c.lineTo(Math.random() * size, Math.random() * size);
+      c.stroke();
+    }
+
+    c.restore();
+    return off;
+  }
+
+  // --- DOCUMENT / MEME CANVAS ---
+  const docCanvas = document.getElementById('documentCanvas');
+  const docCtx = docCanvas.getContext('2d');
+  let uploadedBgImg = null;
+
+  function drawWashiDocument() {
+    docCtx.fillStyle = '#fdfbf7';
+    docCtx.fillRect(0, 0, docCanvas.width, docCanvas.height);
+
+    if (uploadedBgImg) {
+      // Fit uploaded image
+      const scale = Math.min(docCanvas.width / uploadedBgImg.width, docCanvas.height / uploadedBgImg.height);
+      const w = uploadedBgImg.width * scale;
+      const h = uploadedBgImg.height * scale;
+      docCtx.drawImage(uploadedBgImg, (docCanvas.width - w) / 2, (docCanvas.height - h) / 2, w, h);
+      return;
+    }
+
+    // Traditional Japanese invoice/certificate lines
+    docCtx.strokeStyle = '#d8cfc0';
+    docCtx.lineWidth = 2;
+    docCtx.strokeRect(20, 20, docCanvas.width - 40, docCanvas.height - 40);
+
+    for (let x = 70; x < docCanvas.width - 40; x += 48) {
+      docCtx.beginPath();
+      docCtx.moveTo(x, 35);
+      docCtx.lineTo(x, docCanvas.height - 35);
+      docCtx.stroke();
+    }
+
+    docCtx.fillStyle = '#3a332c';
+    docCtx.font = 'bold 18px "Noto Serif JP", serif';
+    docCtx.fillText('GIẤY CHỨNG NHẬN TÁC QUYỀN VÔ TRI (証明書)', 42, 58);
+    docCtx.font = '13px monospace';
+    docCtx.fillText('Click bất kỳ đâu lên tờ giấy này (hoặc tải ảnh meme lên) để đóng mộc đỏ!', 42, 85);
+  }
+
+  drawWashiDocument();
+
+  function updateInkIndicator() {
+    const pct = Math.round(inkLevel * 100);
+    const status = document.getElementById('inkStatus');
+    status.textContent = pct > 35
+      ? `🔴 Độ đậm mực: ${pct}% (Sẵn sàng đóng dấu!)`
+      : `🟠 Độ đậm mực: ${pct}% (Sắp hết mực, bấm hộp Chu Sa để chấm thêm!)`;
+  }
+
+  document.getElementById('shunikuPad').addEventListener('click', () => {
+    inkLevel = 1.0;
+    StampAudio.playInkDip();
+    updateInkIndicator();
+  });
+
+  // Click on Document to Stamp!
+  docCanvas.addEventListener('pointerdown', (e) => {
+    const rect = docCanvas.getBoundingClientRect();
+    const x = (e.clientX - rect.left) * (docCanvas.width / rect.width);
+    const y = (e.clientY - rect.top) * (docCanvas.height / rect.height);
+
+    const hanko = generateHankoCanvas(inkLevel);
+    const stampDisplaySize = 135;
+    const randomTilt = (Math.random() - 0.5) * 0.35; // Natural hand tilt
+
+    docCtx.save();
+    docCtx.translate(x, y);
+    docCtx.rotate(randomTilt);
+    docCtx.drawImage(hanko, -stampDisplaySize / 2, -stampDisplaySize / 2, stampDisplaySize, stampDisplaySize);
+    docCtx.restore();
+
+    // Screen shake & Sound
+    StampAudio.playStampThump();
+    document.body.classList.remove('shake-screen');
+    void document.body.offsetWidth;
+    document.body.classList.add('shake-screen');
+
+    // Reduce ink slightly after each press
+    inkLevel = Math.max(0.22, inkLevel - 0.18);
+    updateInkIndicator();
+  });
+
+  // Upload custom background image
+  document.getElementById('bgUploadInput').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const img = new Image();
+      img.onload = () => {
+        uploadedBgImg = img;
+        drawWashiDocument();
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+
+  document.getElementById('resetDocBtn').addEventListener('click', () => {
+    uploadedBgImg = null;
+    drawWashiDocument();
+  });
+
+  // Download Transparent Stamp Sticker (.PNG)
+  document.getElementById('downloadStampPngBtn').addEventListener('click', () => {
+    const hanko = generateHankoCanvas(1.0);
+    const a = document.createElement('a');
+    a.download = `hanko-sticker-${Date.now()}.png`;
+    a.href = hanko.toDataURL('image/png');
+    a.click();
+  });
+
+  // Download Stamped Document (.PNG)
+  document.getElementById('downloadDocBtn').addEventListener('click', () => {
+    const a = document.createElement('a');
+    a.download = `stamped-document-${Date.now()}.png`;
+    a.href = docCanvas.toDataURL('image/png');
+    a.click();
+  });
+</script>
+</body>
+</html>
